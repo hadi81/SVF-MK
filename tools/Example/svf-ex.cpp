@@ -28,7 +28,7 @@
 #include "util.h"
 #include "ec.h"
 #include "crt.h"
-#include "etsan.h"
+//#include "etsan.h"
 bool EC = true;
 bool TestPass = false;
 bool CRT = false; bool emitAll = true;
@@ -66,7 +66,7 @@ int main(int argc, char ** argv) {
             }
     }
 	if (ETSAN) {
-			etsan();
+	//		etsan();
 	}
 	//updateBC();
 

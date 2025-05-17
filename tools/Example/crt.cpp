@@ -200,7 +200,7 @@ int taskTaskVoilations() {
 
 
 												cout<< "Tasks are sharing resources:"<<endl;
-                                                val1->dump();
+                                           //     val1->dump();
 #if 01
 												if (qtype) {
 														for(auto user: val1->users()) {
@@ -299,7 +299,7 @@ ConstantRange getValueRange(Value * val, Function * fun, Instruction * point) {
 		//Walk use-def and taint all values that could affect this value. 
 		while(!worklist.empty()) {
 			auto val = worklist.back();
-			val->dump();
+			// val->dump();
 			worklist.pop_back();
 			if (auto *gv = dyn_cast<GlobalValue>(val)) {
 					taintList.push_back(gv);
@@ -321,7 +321,7 @@ ConstantRange getValueRange(Value * val, Function * fun, Instruction * point) {
 
 		cout<<"Dumping taint set"<<endl;
 		for(auto val: taintList) {
-				val->dump();
+			//	val->dump();
 #if 0
 				AllocaInst* arg = new AllocaInst(tp, "name", firstInst);
 			    args.push_back(arg);
@@ -351,7 +351,7 @@ ConstantRange getValueRange(Value * val, Function * fun, Instruction * point) {
 								 false//isVarArg
 								 );
 				auto symFun = M->getOrInsertFunction("klee_make_symbolic", fty);
-				symFun.getCallee()->dump();
+				//symFun.getCallee()->dump();
 				//If this is a local variable make symbolic after definition.
 				if (auto inst= dyn_cast<llvm::AllocaInst>(val)) {
 					IRBuilder<> Builder(inst);
@@ -371,15 +371,15 @@ ConstantRange getValueRange(Value * val, Function * fun, Instruction * point) {
 					auto inst_arg = Builder.CreatePointerCast(inst, Type::getInt8PtrTy(inst->getContext()));
 //					ArrayRef< Value * > args = {inst, size_arg, name_arg};
 				//	ArrayRef< Value * > args = {size_arg};
-					Builder.CreateCall(symFun, {inst_arg, size_arg, name_arg})->dump();
-					fun->dump();
+			//		Builder.CreateCall(symFun, {inst_arg, size_arg, name_arg})->dump();
+				//	fun->dump();
 
 					//Internalize all externs
 					for (auto G = svfModule->global_begin(), E = svfModule->global_end(); G != E; ++G) {
 		                auto glob = &*G;
 						if ((*glob)->getType()->isIntegerTy() && (*glob)->hasExternalLinkage()) {
 								(*glob)->setLinkage( llvm::GlobalValue::InternalLinkage);
-								(*glob)->dump();
+							//	(*glob)->dump();
 								(*glob)->setInitializer(Builder.getInt64(0));
 						}
 					}
@@ -794,13 +794,13 @@ int driverIsolation() {
 								if (auto arrTy = dyn_cast<llvm::ArrayType>((*G)->getType())) {
 										if (arrTy->getElementType()->isPointerTy()) {
 												cerr<<"Element Pointer Type";
-												(*glob)->getInitializer()->dump();
+										//		(*glob)->getInitializer()->dump();
 										}
 								}
 								else if (auto arrTy = dyn_cast<llvm::VectorType>((*G)->getType())) {
 										cerr<<"Aggregate Type";
-										(*G)->getType()->dump();
-										(*glob)->getInitializer()->dump();
+							//			(*G)->getType()->dump();
+							//			(*glob)->getInitializer()->dump();
 								}
 								// otherwise its a pointer see if it was pointer 
 								else {
@@ -890,7 +890,7 @@ int driverIsolation() {
 										/* Lame ass case if the instruction itself is inttoptr */
 										if (auto inttoptr = dyn_cast<llvm::IntToPtrInst>(stmt)) {
 												/* inttoptr */
-												inttoptr->dump();
+												//inttoptr->dump();
 												if (auto ptsTo = dyn_cast<llvm::ConstantInt>(inttoptr->getOperand(0))) { 
 														/* A hardcoded pointer*/
 														auto addr = *ptsTo->getValue().getRawData();
@@ -949,11 +949,11 @@ int driverIsolation() {
 																		}
 																		if (auto gep = dyn_cast<llvm::GetElementPtrInst>(stmt)) {
 																				/* Trying to escape with pointer arithmetic not allowed */
-																				gep->dump();
+																				//gep->dump();
 																				if (!gep->hasAllConstantIndices()) {
 																						if (gep->getNumIndices ()  == 2) {
-																								gep->getOperand(1)->dump();
-																								gep->getOperand(2)->dump();
+																								//gep->getOperand(1)->dump();
+																								//gep->getOperand(2)->dump();
 																								auto cr = computeConstantRange(gep->getOperand(2));
 
 																								cr = getValueRange(gep->getOperand(2), fun, &(*stmt));
@@ -1036,7 +1036,7 @@ int driverIsolation() {
 														} else {
 																/* The pointer converted is int but not constant */
 																printBanner("Assume bounds case found");
-																stmt->dump();
+															//	stmt->dump();
 														}
 
 												}
@@ -1156,9 +1156,9 @@ int taskKernelVoilations() {
 								//}
 						}
 #endif
-						if (arg->hasAttribute(Attribute::UserValue)) {
-								uservalues.push_back(arg);
-						}
+						//if (arg->hasAttribute(Attribute::UserValue)) {
+						//		uservalues.push_back(arg);
+						//}
 				}
 				if (vContains(kernFuncs, val->getName().data())) {
 						pushValsInFun(fun,vec,pag, &vfp);
@@ -1309,7 +1309,7 @@ int taskKernelVoilations() {
 										}
 										if (!emitted) {
 												cerr<<"GV without DI:";
-												global->dump();
+										//		global->dump();
 										}
 								}
 								else if (auto func = dyn_cast<Function>(val.first)) {

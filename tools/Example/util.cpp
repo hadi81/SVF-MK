@@ -102,7 +102,7 @@ std::fstream& GotoLine(std::fstream& file, unsigned int num){
 
 void dumper(Value * val) {
 		cerr << "***************************************************" <<endl;
-		val->dump();
+		// val->dump();
 		cerr<< "****************************************************" <<endl;
 }
 
@@ -357,12 +357,12 @@ void buildPTA() {
 	// Create Andersen's pointer analysis
     //ander = AndersenWaveDiff::createAndersenWaveDiff(pag); TODO: This threw error will uncomment later
     //Create FlowSensitiveTBHC
-    //FlowSensitiveTBHC fspta= FlowSensitiveTBHC(pag);
+    // FlowSensitiveTBHC fsptal= FlowSensitiveTBHC(pag);
     static FlowSensitive fsptal = FlowSensitive(pag);
 	//Uncomment for PTA
 #if 01 
-    fsptal.initialize();
-    fsptal.analyze();
+    // fsptal.initialize();
+    // fsptal.analyze();
 	fspta = &fsptal;
 #endif 
 
@@ -401,7 +401,7 @@ void printDI(Instruction * instruction) {
                         cerr<<"Error: "<<directory.str()  << "/"<<filePath.str() << ":" << line << ":" << column<<endl;
 						}
 						else {
-								instruction->dump();
+								// instruction->dump();
 						}
 }
 static auto init = false;
@@ -489,7 +489,7 @@ void getTasks() {
 								}
                             }
 							else {
-									U->dump();
+									// U->dump();
 #ifdef FREERTOS
 									if (arg==0)
 									cerr<<"ThreadDiscoveryError: Could not figure out the caller!"<<endl;
@@ -562,7 +562,7 @@ void updateBC() {
             //raw_fd_ostream output = raw_fd_ostream("temp.bc", EC); error: use of deleted function ‘llvm::raw_fd_ostream::raw_fd_ostream(const llvm::raw_fd_ostream&)’
 		verifyModule(*ll_mod);
 		//Holy Grail of debug
-		ll_mod->dump();
+		// ll_mod->dump();
         raw_fd_ostream output("temp.bc", EC);
         llvm::WriteBitcodeToFile(*ll_mod, output);
 		cerr<<"temp.bc updated"<<endl;
@@ -636,10 +636,10 @@ void getFunctionfromUse(User * muse, vector<Function *>& users, int depth) {
 								}
 								cout<<"********************"<<endl;
 								cout<<"Depth Expired"<<endl;
-								user->dump();
+								// user->dump();
 								cout<<"with "<<user->getNumUses ()<< " users:"<<endl;
 								for(auto user1: user->users()){
-										user1->dump();
+										// user1->dump();
 								}
 								cout<<"********************"<<endl;
 

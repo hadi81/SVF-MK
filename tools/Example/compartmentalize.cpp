@@ -197,7 +197,7 @@ int crt_intertask(vector<string>& thread_funcs_vec, vector<string>& kernel_funcs
 												cout<< "Tasks are sharing resources:"<<endl;
 												cout<< task1->getName().str()<<endl;
 												cout<< task2->getName().str()<<endl;
-												val1->dump();
+												//val1->dump();
 												exit(0);
 										}
 								}
@@ -329,7 +329,7 @@ string  argToBridge(CallInst * ci, int argnum, Value ** v, Value ** sizeInt, Val
 						} else {
 								*v = Builder.CreatePointerCast(arg, Type::getInt8PtrTy(arg->getContext()));
 								cerr <<"Unsized pointer:";
-								ci->dump();
+								//ci->dump();
 								*sizeInt  = ConstantInt::get(arg->getContext(),
 												llvm::APInt(32, 1, false));
 						}
@@ -348,7 +348,7 @@ string  argToBridge(CallInst * ci, int argnum, Value ** v, Value ** sizeInt, Val
 		else {
 
 				cerr<<"Pass incomplete" <<endl;
-				ci->dump();
+				//ci->dump();
 				*v = NULL; *sizeInt = NULL;
 				args = "";
 		}
@@ -365,7 +365,7 @@ string getRetType(CallInst * ci) {
 				ret = "p";
 		} else {
 				cerr<<"Pass incomplete" <<endl;
-				ci->dump();
+				//ci->dump();
 				ret = "";
 		}
 		return ret;
@@ -381,7 +381,7 @@ Type* getRetTy(CallInst * ci, IRBuilder<> &Builder) {
 				ret = Builder.getInt8PtrTy();
 		} else {
 				cerr<<"Pass incomplete" <<endl;
-				ci->dump();
+				//ci->dump();
 				ret = NULL;
 		}
 		return ret;
@@ -460,7 +460,7 @@ int promoteXCallNoCalee(CallInst * ci, BasicBlock::iterator& stmt, int compID) {
 
 		stmt++;
 		ins->removeFromParent();
-		ins->dump();
+		//ins->dump();
 		ReplaceInstWithInst(ci, ins);
 
 		return 0;
@@ -511,7 +511,7 @@ int promoteXCallNoCaleeNoId(CallInst * ci, BasicBlock::iterator& stmt) {
 
 		stmt++;
 		ins->removeFromParent();
-		ins->dump();
+		//ins->dump();
 		ReplaceInstWithInst(ci, ins);
 
 		return 0;
@@ -541,9 +541,9 @@ bool forward_slice_crt(Function *F, SmallPtrSet<Function*, 16> &visitedFunctions
 								}
 								else {
 										cerr<<"Incomplete Trace due to:"<<F->getName().str()<<endl;
-										CI->getCalledOperand()->dump();
+										//CI->getCalledOperand()->dump();
 										auto los = CI->getCalledOperand();
-										CI->getFunctionType()->dump();
+									//	CI->getFunctionType()->dump();
 #if WALK_VTABLES
 										//Compiler makes it the first argument for class function
 										CI->getFunctionType()->getParamType(0)->dump();
@@ -607,7 +607,7 @@ bool isVolatile(Value * v) {
 								if (!li->isVolatile()) {
 										isIO = false;
 										cout<<"Volatile nulled at";
-										userInst->dump();
+										//userInst->dump();
 										break;
 								}
 						}
@@ -615,7 +615,7 @@ bool isVolatile(Value * v) {
 								if (!si->isVolatile()) {
 										isIO = false;
 										cout<<"Volatile nulled at";
-										userInst->dump();
+									//	userInst->dump();
 										break;
 								}
 						}
@@ -706,6 +706,7 @@ int compartmentalize(char * argv[]) {
 		for (auto G = svfModule->global_begin(), E = svfModule->global_end(); G != E; ++G) {
 				auto glob = &*G;
 				if ((*glob)->getName().str() == "llvm.used" || (*glob)->getName().str() == "_shared_region" || (*glob)->getSection().str().find(isr) != std::string::npos
+								|| (*glob)->getName().str() == "_GLOBAL__sub_I_main.cpp"
 								|| (*glob)->getSection().str().find(rtmksec) != std::string::npos
 								|| (*glob)->getSection().str().find(shared) != std::string::npos || 
 								(*glob)->getSection().str().find(privileged) != std::string::npos ||
@@ -822,6 +823,7 @@ int compartmentalize(char * argv[]) {
 						continue;
 				}
 				if (fun->getSection().str() == "llvm.used" || fun->getSection().str() == "_shared_region"
+								|| fun->getSection().str() == "_GLOBAL__sub_I_main.cpp"
                                 || fun->getSection().str().find(rtmksec) != std::string::npos
                                 || fun->getSection().str().find(shared) != std::string::npos ||
                                 fun->getSection().str().find(privileged) != std::string::npos ||
@@ -939,7 +941,7 @@ int compartmentalize(char * argv[]) {
 										if (auto cast= dyn_cast<llvm::ConstantExpr>(op)) {
 												/* Get the thing as an instruction */
 												if (auto inttoptr = dyn_cast<llvm::IntToPtrInst>(cast->getAsInstruction())) {
-														cout << fun->getName().str() << " accesses "; inttoptr->dump();
+														//cout << fun->getName().str() << " accesses "; inttoptr->dump();
 														if (auto ptsTo = dyn_cast<llvm::ConstantInt>(inttoptr->getOperand(0))) {
 																auto addr = *ptsTo->getValue().getRawData();
 																if (addr == 0 || addr ==0xFFFFFFFF) {
@@ -951,7 +953,7 @@ int compartmentalize(char * argv[]) {
 																Type * type = getInnermostPointedToType(inttoptr->getDestTy ()->getPointerElementType());
 																if (type->getTypeID() == Type::StructTyID ) {
 																		cerr<<endl<<"IO Type"<<endl;
-																		inttoptr->getDestTy ()->getPointerElementType()->dump();
+																		//inttoptr->getDestTy ()->getPointerElementType()->dump();
 																		if (ioTypes.count(type)) {
 																				auto info = ioTypes[type];
 																				auto end = addr + 0x1000;
@@ -969,7 +971,7 @@ int compartmentalize(char * argv[]) {
 																				info.end = addr + 0x1000;
 																				ioTypes[type] = info;
 																				cout<<"Adding new type"<<endl;
-																				type->dump();
+																				//type->dump();
 																				cout<<type<<endl;
 																				cout<<fun->getName().str()<<endl;
 																		}
@@ -979,23 +981,23 @@ int compartmentalize(char * argv[]) {
 																if (isa<llvm::StoreInst>(stmt) || isa<llvm::LoadInst>(stmt)) {
 																		if (stmt->hasNUsesOrMore(2)) {
 																				cout<<"*****************************"<<endl;
-																				stmt->dump();
+																				//stmt->dump();
 																				printDI(dyn_cast<llvm::Instruction>(stmt));
 																				cout<<"used by:  "<<endl;
 																				int i =0;
 																				for (auto user: stmt->users()) {
-																						user->dump();
+																						//user->dump();
 																						printDI(dyn_cast<llvm::Instruction>(user));
 																				}
 																		}
 																}
 																if (auto gep = dyn_cast<llvm::GetElementPtrInst>(stmt)) {
 																		/* Trying to escape with pointer arithmetic not allowed */
-																		gep->dump();
+																		//gep->dump();
 																		if (!gep->hasAllConstantIndices()) {
 																				if (gep->getNumIndices ()  == 2) {
-																						gep->getOperand(1)->dump();
-																						gep->getOperand(2)->dump();
+																						//gep->getOperand(1)->dump();
+																						//gep->getOperand(2)->dump();
 																						auto cr = computeConstantRange(gep->getOperand(2));
 
 																				}
@@ -1027,17 +1029,17 @@ int compartmentalize(char * argv[]) {
 				Type * ty = getInnermostPointedToType(gv->getType());
 				if (ioTypes.count(ty)) {
 						cerr<<"IO Variable"<<endl;
-						gv->dump();
+						//gv->dump();
 						auto isIO = isVolatile(gv);
 						// See if variable is used as IO var
 
 						cout<<"is Accessed:" <<isAccessed(gv) << "isVolatile:"<<isVolatile(gv)<<endl;
 						if (isAccessed(gv)) {
 								for (User* user : gv->users()) {
-										user->dump();
+										//user->dump();
 										if (auto gep = dyn_cast<llvm::GetElementPtrInst>(user)) {
 												cout<<"GEP FOund"<<endl;
-												gep->dump();
+												//gep->dump();
 												if (isVolatile(gep)) {
 														Function* enclosingFunction = gep->getParent()->getParent();
 														dbgs() << "Use in Function: " << enclosingFunction->getName().str() << "\n";
@@ -1139,104 +1141,126 @@ int compartmentalize(char * argv[]) {
 		}
 
 		if (os == "freertos") {
-		threads.open("./threads");
-		for (SVFModule::llvm_iterator F = svfModule->llvmFunBegin(), E = svfModule->llvmFunEnd(); F != E; ++F) {
-				Function *fun = *F;
-				Value * val = (Value *)fun;
-				if (val->getName().str().compare("xTaskCreate")==0 || val->getName().str().compare("SafeTaskCreate")==0) {
-						for (auto user : val->users()) {
-								if (auto ci =  dyn_cast<llvm::CallInst>(user)) {
-										auto  thread = ci->getArgOperand(0);
-										threads<<thread->getName().str()<<endl;
-										thread_vec.push_back(thread);
-								}
-						}
-				}
-		}
+			threads.open("./threads");
+			for (SVFModule::llvm_iterator F = svfModule->llvmFunBegin(), E = svfModule->llvmFunEnd(); F != E; ++F) {
+					Function *fun = *F;
+					Value * val = (Value *)fun;
+					if (val->getName().str().compare("xTaskCreate")==0 || val->getName().str().compare("SafeTaskCreate")==0) {
+							for (auto user : val->users()) {
+									if (auto ci =  dyn_cast<llvm::CallInst>(user)) {
+											auto  thread = ci->getArgOperand(0);
+											threads<<thread->getName().str()<<endl;
+											thread_vec.push_back(thread);
+									}
+							}
+					}
+			}		
 
-		auto types = ll_mod->getIdentifiedStructTypes();
-        cout<< "Length of identified structures" << types.size()<<endl;
-		StructType * TargetStruct = NULL; 
-        for (auto ty : types) {
-                if (auto st = dyn_cast<StructType>(ty)) {
-                        if (st->getNumElements() && isa<PointerType>(st->getElementType(0))) {
-							auto ty =getInnermostPointedToType(st->getElementType(0));
-							cerr<<"Function task cand:"<<endl;
-							if (ty->isFunctionTy()) {
-								llvm::FunctionType *funcType = llvm::dyn_cast<llvm::FunctionType>(ty);
-								if (funcType->getNumParams() == 1) {
-										st->dump();
-										TargetStruct =st;
+			auto types = ll_mod->getIdentifiedStructTypes();
+			cout<< "Length of identified structures" << types.size()<<endl;
+			StructType * TargetStruct = NULL; 
+			for (auto ty : types) {
+					if (auto st = dyn_cast<StructType>(ty)) {
+							if (st->getNumElements() && isa<PointerType>(st->getElementType(0))) {
+								auto ty =getInnermostPointedToType(st->getElementType(0));
+								cerr<<"Function task cand:"<<endl;
+								if (ty->isFunctionTy()) {
+									llvm::FunctionType *funcType = llvm::dyn_cast<llvm::FunctionType>(ty);
+									if (funcType->getNumParams() == 1) {
+										//	st->dump();
+											TargetStruct =st;
+									}
 								}
 							}
-						}
-				}
-		}
-
-		std::function<bool(llvm::Type *)> isMatchingStructType;
-		// Lambda to check if a given type matches or contains the target StructType
-		isMatchingStructType = [&isMatchingStructType, TargetStruct](llvm::Type *Ty) -> bool {
-	        if (auto *StructTy = llvm::dyn_cast<llvm::StructType>(Ty)) {
-				if (StructTy->isLiteral())
-						return false;
-    	        return StructTy->getName() == TargetStruct->getName(); // Example struct name
-        	}
-        if (auto *PtrTy = llvm::dyn_cast<llvm::PointerType>(Ty)) {
-            return isMatchingStructType(PtrTy->getPointerElementType());
-        }
-        if (auto *ArrayTy = llvm::dyn_cast<llvm::ArrayType>(Ty)) {
-            return isMatchingStructType(ArrayTy->getElementType());
-        }
-        if (auto *VectorTy = llvm::dyn_cast<llvm::VectorType>(Ty)) {
-            return isMatchingStructType(VectorTy->getElementType());
-        }
-        return false;
-    	};
-
-		// Iterate over global variables
-        for (GlobalVariable &GV : ll_mod->globals()) {
-            if (isMatchingStructType(GV.getValueType())) {
-                errs() << "  Global Variable defining task: " << GV.getName() << "\n";
-				if (GV.hasInitializer()){
-						if (auto *StructConst = llvm::dyn_cast<llvm::ConstantStruct>(GV.getInitializer())){
-								llvm::Constant *FirstElement = StructConst->getOperand(0);
-								auto *Func = llvm::dyn_cast<llvm::Function>(FirstElement);
-								threads<<Func->getName().str()<<endl;
-								thread_vec.push_back(Func);
-						}
-				}
-            }
-        }
-
-        // Iterate over functions
-        for (Function &F : *ll_mod) {
-#if 0
-            // Check function arguments
-            for (Argument &Arg : F.args()) {
-                if (isMatchingStructType(Arg.getType())) {
-                    errs() << "  Function Argument defining task: " << Arg.getName() << " in function " << F.getName() << "\n";
-                }
-            }
-#endif 
-
-            // Check instructions in the function
-            for (BasicBlock &BB : F) {
-                for (Instruction &I : BB) {
-					if (llvm::isa<llvm::AllocaInst>(&I)) {
-                    // Check operand types
-                    for (Use &Op : I.operands()) {
-                        if (isMatchingStructType(Op->getType())) {
-                            errs() << "  Instruction defining task: " << I << " in function " << F.getName() << "\n";
-                        }
-                    }
 					}
-                }
-            }
-        }
+			}
 
+			std::function<bool(llvm::Type *)> isMatchingStructType;
+			// Lambda to check if a given type matches or contains the target StructType
+			isMatchingStructType = [&isMatchingStructType, TargetStruct](llvm::Type *Ty) -> bool {
+				if (auto *StructTy = llvm::dyn_cast<llvm::StructType>(Ty)) {
+					if (StructTy->isLiteral())
+							return false;
+					return StructTy->getName() == TargetStruct->getName(); // Example struct name
+				}
+			if (auto *PtrTy = llvm::dyn_cast<llvm::PointerType>(Ty)) {
+				return isMatchingStructType(PtrTy->getPointerElementType());
+			}
+			if (auto *ArrayTy = llvm::dyn_cast<llvm::ArrayType>(Ty)) {
+				return isMatchingStructType(ArrayTy->getElementType());
+			}
+			if (auto *VectorTy = llvm::dyn_cast<llvm::VectorType>(Ty)) {
+				return isMatchingStructType(VectorTy->getElementType());
+			}
+			return false;
+			};
 
+			// Iterate over global variables
+			for (GlobalVariable &GV : ll_mod->globals()) {
+				if (isMatchingStructType(GV.getValueType())) {
+					errs() << "  Global Variable defining task: " << GV.getName() << "\n";
+					if (GV.hasInitializer()){
+							if (auto *StructConst = llvm::dyn_cast<llvm::ConstantStruct>(GV.getInitializer())){
+									llvm::Constant *FirstElement = StructConst->getOperand(0);
+									auto *Func = llvm::dyn_cast<llvm::Function>(FirstElement);
+									threads<<Func->getName().str()<<endl;
+									thread_vec.push_back(Func);
+							}
+					}
+				}
+			}
+
+			// Iterate over functions
+			for (Function &F : *ll_mod) {
+	#if 0
+				// Check function arguments
+				for (Argument &Arg : F.args()) {
+					if (isMatchingStructType(Arg.getType())) {
+						errs() << "  Function Argument defining task: " << Arg.getName() << " in function " << F.getName() << "\n";
+					}
+				}
+	#endif 
+
+				// Check instructions in the function
+				for (BasicBlock &BB : F) {
+					for (Instruction &I : BB) {
+						if (llvm::isa<llvm::AllocaInst>(&I)) {
+						// Check operand types
+						for (Use &Op : I.operands()) {
+							if (isMatchingStructType(Op->getType())) {
+								errs() << "  Instruction defining task: " << I << " in function " << F.getName() << "\n";
+							}
+						}
+						}
+					}
+				}
+			}
 
 		}
+
+		if (os == "cmsis-rtx") {
+			threads.open("./threads");
+		
+			for (SVFModule::llvm_iterator F = svfModule->llvmFunBegin(), E = svfModule->llvmFunEnd(); F != E; ++F) {
+				Function *fun = *F;
+				Value *val = (Value *)fun;
+		
+				if (val->getName().str() == "osThreadNew") {
+					for (auto user : val->users()) {
+						if (auto ci = dyn_cast<CallInst>(user)) {
+							Value *threadFunc = ci->getArgOperand(0); // thread entry function
+							if (Function *f = dyn_cast<Function>(threadFunc)) {
+								threads << f->getName().str() << endl;
+								thread_vec.push_back(f);
+							}
+						}
+					}
+				}
+			}
+		
+			threads.close();
+		}
+		
 
 
 		if (os == "ardupilot") {
@@ -1304,7 +1328,7 @@ int compartmentalize(char * argv[]) {
 								if (auto elem = dyn_cast<StructType>(st->getElementType(i))) {
 										if (elem->hasName()) {
 												cerr<<"Parent Type:";
-												st->getElementType(i)->dump();
+												//st->getElementType(i)->dump();
 												auto parent_structure_type = elem;
 												auto parent_structure_name = parent_structure_type->getName().str();
 												if (parent_structure_type->getName().find("class")!= llvm::StringRef::npos 
@@ -1741,6 +1765,10 @@ int compartmentalize(char * argv[]) {
 								continue;
 						}
 
+						if (go->getName().str() == "_GLOBAL__sub_I_main.cpp") {
+								continue;
+						}
+
 						string privileged = "privileged";
 		                if (go->getSection().str().find(privileged) != std::string::npos) {
         	                continue;
@@ -1979,7 +2007,7 @@ int compartmentalize(char * argv[]) {
 				if (auto fun = dyn_cast<llvm::Function> (res)) {
 						for (auto user : fun->users ()) {
 								cout<<"Dump old user"<<endl;
-								user->dump();
+						//		user->dump();
 						}
 				}
 		}
@@ -1992,7 +2020,7 @@ int compartmentalize(char * argv[]) {
 								temp.push_back(user);
 						}
 						for (auto user : temp) {
-								user->dump();
+								//user->dump();
 								ValueToValueMapTy VMap;
 								auto cfun = CloneFunction(fun, VMap);
 								clones.push_back(cfun);
@@ -2002,7 +2030,7 @@ int compartmentalize(char * argv[]) {
 										if (auto ci= dyn_cast<llvm::CallInst> (user)) {
 												ci->setCalledFunction (cfun);
 												cout<<"Cloning to new function"<<endl;
-												ci->dump();
+										//		ci->dump();
 										}
 								}
 						}
@@ -2062,7 +2090,7 @@ int compartmentalize(char * argv[]) {
 												cerr<<"Indirect Call"<<endl;
 												vector<Function *> targets;
 												auto called = ci->getCalledOperand();
-												called->dump();
+												//called->dump();
 												auto ptr = called;
 												if (auto li= dyn_cast<llvm::LoadInst>(called)) {
 														ptr= li->getPointerOperand();
@@ -2070,7 +2098,7 @@ int compartmentalize(char * argv[]) {
 												{
 														cout<<"An alias pointer used"<<endl;
 														ptr = called;
-														ptr->dump();
+														//ptr->dump();
 														for(auto &pts: function_pointers) {
 																//cerr<<"Comparing with:"; pts.first->dump();
 																if (aliasQuery(fspta, ptr, pts.first)) {
