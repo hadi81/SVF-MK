@@ -702,11 +702,16 @@ int compartmentalize(char * argv[]) {
 		ofstream dfg;
 		dfg.open("./dg");
 
+		ignoreList<<"_GLOBAL__sub_I_main.cpp"<<endl;
+		ignoreList<<"__cxx_global_var_init"<<endl;
+		ignoreList<<"__cxx_global_var_init.1"<<endl;
 
+		std::cout<<"==Global Nmaes: =="<<std::endl;
 		for (auto G = svfModule->global_begin(), E = svfModule->global_end(); G != E; ++G) {
 				auto glob = &*G;
+				std::cout<<(*glob)->getName().str()<<std::endl;
 				if ((*glob)->getName().str() == "llvm.used" || (*glob)->getName().str() == "_shared_region" || (*glob)->getSection().str().find(isr) != std::string::npos
-								|| (*glob)->getName().str() == "_GLOBAL__sub_I_main.cpp"
+								|| (*glob)->getName().str() == "llvm.global_ctors"
 								|| (*glob)->getSection().str().find(rtmksec) != std::string::npos
 								|| (*glob)->getSection().str().find(shared) != std::string::npos || 
 								(*glob)->getSection().str().find(privileged) != std::string::npos ||
@@ -803,11 +808,14 @@ int compartmentalize(char * argv[]) {
 				cout<< fun->getName().str() <<endl;
 
 		}
+		std::cout<<"==Function Nmaes: =="<<std::endl;
 		//for (SVFModule::llvm_iterator F = svfModule->llvmFunBegin(), E = svfModule->llvmFunEnd(); F != E; ++F)
 		for (auto F = ll_mod->begin(), E=ll_mod->end(); F!= E; ++F) 
-		{
+		{		
+				
 				//auto fun = *F;
 				auto fun = F;
+				std:cout<<fun->getName().str()<<std::endl;
 				volatile unsigned int i =0;
 				//		string tt = "heval_I2c1";
 				//	if (fun->getName().str() == tt)
@@ -823,7 +831,8 @@ int compartmentalize(char * argv[]) {
 						continue;
 				}
 				if (fun->getSection().str() == "llvm.used" || fun->getSection().str() == "_shared_region"
-								|| fun->getSection().str() == "_GLOBAL__sub_I_main.cpp"
+								|| fun->getSection().str() == "llvm.global_ctors"
+								|| fun->getSection().str() == "_GLOBAL__sub_I_main.cpp"	
                                 || fun->getSection().str().find(rtmksec) != std::string::npos
                                 || fun->getSection().str().find(shared) != std::string::npos ||
                                 fun->getSection().str().find(privileged) != std::string::npos ||
@@ -1765,13 +1774,18 @@ int compartmentalize(char * argv[]) {
 								continue;
 						}
 
+						if (go->getName().str() == "llvm.global_ctors") {
+								continue;
+						}
+
 						if (go->getName().str() == "_GLOBAL__sub_I_main.cpp") {
 								continue;
 						}
 
 						string privileged = "privileged";
 		                if (go->getSection().str().find(privileged) != std::string::npos) {
-        	                continue;
+        	                compartmentMap[go->getName().str()] = 0; //Assign to compartment 0
+							continue;
             		    }
 
 						string isr = "isr_vector";
@@ -1786,9 +1800,27 @@ int compartmentalize(char * argv[]) {
 						if (go->getSection().str().find(csec) != std::string::npos) {
 								continue;
 						}
+						string nvictable = "nvictable";
+						if (go->getSection().str().find(nvictable) != std::string::npos) {
+								continue;
+						}
+						string dataos = "data.os";
+						if (go->getSection().str().find(dataos) != std::string::npos) {
+								continue;
+						}
+						string rodata = "rodata";
+						if (go->getSection().str().find(rodata) != std::string::npos) {
+								continue;
+						}
+						string bssos = "bss.os";
+						if (go->getSection().str().find(bssos) != std::string::npos) {
+								continue;
+						}
+
 						debug<<go->getName().str()<<":"<<endl;
 						debug<<"moved from "<<go->getSection().str()<< " to ";
-						auto compartmentID = compartmentMap[go->getName().str()]; 
+						auto compartmentID = compartmentMap[go->getName().str()];
+						if (compartmentID == 0) continue; //If it is in compartment 0, skip				 
 						//StringRef s = ".object_section" + std::to_string(compartmentID);
 						StringRef s = ".osection" + std::to_string(compartmentID);
 						auto *gv = llvm::cast<llvm::GlobalVariable>(go);
@@ -1819,7 +1851,8 @@ int compartmentalize(char * argv[]) {
 
 				string privileged = "privileged";
 				if (fun->getSection().str().find(privileged) != std::string::npos) {
-                        continue;
+                        compartmentMap[fun->getName().str()] = 0;
+						continue;
                 }
 
 				string syscall = "system_calls";
@@ -1827,9 +1860,14 @@ int compartmentalize(char * argv[]) {
                         continue;
                 }
 
+				if (fun->getName().str() == "_GLOBAL__sub_I_main.cpp") {
+					continue;
+				}
+
 				debug<<fun->getName().str()<<":" <<endl;
 				debug<<"moved from "<<fun->getSection().str()<< " to ";
 				auto compartmentID = compartmentMap[fun->getName().str()];
+				if (compartmentID == 0) continue;
 				StringRef s = ".csection" + std::to_string(compartmentID);
 				fun->setSection(s);
 				debug<<fun->getSection().str()<<endl;
@@ -2056,9 +2094,12 @@ int compartmentalize(char * argv[]) {
 						continue;
 				}
 
+				auto callerID  = compartmentMap[fun->getName().str()];
+				if (callerID == 0) continue;
+				auto test_temp = false;
+				auto anchor = fun->begin()->begin();
 				for (auto bb=fun->begin();bb!=fun->end();bb++) {
 						for (auto stmt =bb->begin();stmt!=bb->end(); stmt++) {
-								auto callerID  = compartmentMap[fun->getName().str()];
 								if (auto ci= dyn_cast<llvm::CallInst> (stmt)) {
 										if (ci->isInlineAsm ()) continue; /* TODO: Currently we don't cater to inline asm */
 										auto callee = ci->getCalledFunction ();
@@ -2081,9 +2122,13 @@ int compartmentalize(char * argv[]) {
 												if (callee->getName().str().find(llvm) != std::string::npos) continue;
 												IRBuilder<> Builder(stmt->getParent());
 												BasicBlock::iterator it(stmt);it--;
+												BasicBlock::iterator it2(stmt);
+												anchor = ++it2;
+					
 												//Builder.SetInsertPoint(stmt->getNextNode()->getPrevNode());
 												directCall[callerID]++;
 												promoteXCall(ci, callee, stmt);
+												
 										}
 										else {
 												/* Indirect calls */
