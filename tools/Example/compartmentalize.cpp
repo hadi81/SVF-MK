@@ -705,6 +705,11 @@ int compartmentalize(char * argv[]) {
 		ignoreList<<"_GLOBAL__sub_I_main.cpp"<<endl;
 		ignoreList<<"__cxx_global_var_init"<<endl;
 		ignoreList<<"__cxx_global_var_init.1"<<endl;
+		ignoreList<<"__cxx_global_var_init.2"<<endl;
+		ignoreList<<"__cxx_global_var_init.3"<<endl;
+		ignoreList<<"__cxx_global_var_init.4"<<endl;
+		ignoreList<<"__cxx_global_var_init.5"<<endl;
+		ignoreList<<"__dso_handle"<<endl;
 
 		std::cout<<"==Global Nmaes: =="<<std::endl;
 		for (auto G = svfModule->global_begin(), E = svfModule->global_end(); G != E; ++G) {
@@ -914,7 +919,8 @@ int compartmentalize(char * argv[]) {
 												if (auto inttoptr = dyn_cast<llvm::IntToPtrInst>(cast->getAsInstruction())) {
 														if (auto ptsTo = dyn_cast<llvm::ConstantInt>(inttoptr->getOperand(0))) {
 																auto addr = *ptsTo->getValue().getRawData();
-																if (addr == 0 || addr ==0xFFFFFFFF) {
+																if (addr == 0 || addr ==0xFFFFFFFF || addr < 0x40000000 
+																	|| addr > 0x5FFFFFFF) {
 																		/* These values could be error codes or a weird
 																		   way to make a nullptr */
 																		continue;
