@@ -397,13 +397,22 @@ int promoteXCall(CallInst * ci, Function * callee, BasicBlock::iterator& stmt) {
 		auto num = ci->arg_size();
 		BasicBlock::iterator it(stmt);it--;
 		auto fun = ci->getCalledFunction();
+		auto isr = "custom_bridge";
 		if (fun && fun->getAttributes().getFnAttributes().hasAttribute("rtmkxcmd")) {
 				cout<<"Found function with metadata" <<endl;
 				auto attr = fun->getAttributes().getFnAttributes().getAttribute("rtmkxcmd");
 				auto kw = attr.getValueAsString().str();
 				if (kw == "custom_bridge") {
-						num = -1;
-						cout<<"CUstom Bridge found";
+					cout<<"Found function with metadata" <<endl;
+					fun = ci->getModule()->getFunction("custom_" + fun->getName().str());
+					// If the function exists, modify the call
+        			if (fun) {
+		        	    ci->setCalledFunction(fun);
+			        } else {
+						cout << "custom_" +ci->getCalledFunction()->getName().str() << " not defined." <<endl;
+						exit(1);
+					}	
+					return 0;
 				}
 		}
 
