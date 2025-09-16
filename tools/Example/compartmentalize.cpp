@@ -42,6 +42,7 @@
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/IR/Verifier.h"
 
 #define OVER_APPOX_TRICK
 bool analysisOnly = false;
@@ -76,6 +77,11 @@ Type * getTypeFromName(Module *m, string name) {
 		return NULL;
 }
 
+void dumpModuleToFile(llvm::Module *M, const char *fname) {
+    std::error_code EC;
+    llvm::raw_fd_ostream OS(fname, EC, llvm::sys::fs::OF_None);
+    M->print(OS, nullptr);
+}
 
 bool isSubFunction(Type * FuncParentTy, Type* FuncChildTy) {
 
@@ -197,7 +203,7 @@ int crt_intertask(vector<string>& thread_funcs_vec, vector<string>& kernel_funcs
 												cout<< "Tasks are sharing resources:"<<endl;
 												cout<< task1->getName().str()<<endl;
 												cout<< task2->getName().str()<<endl;
-												//val1->dump();
+												val1->dump();
 												exit(0);
 										}
 								}
@@ -329,7 +335,7 @@ string  argToBridge(CallInst * ci, int argnum, Value ** v, Value ** sizeInt, Val
 						} else {
 								*v = Builder.CreatePointerCast(arg, Type::getInt8PtrTy(arg->getContext()));
 								cerr <<"Unsized pointer:";
-								//ci->dump();
+								ci->dump();
 								*sizeInt  = ConstantInt::get(arg->getContext(),
 												llvm::APInt(32, 1, false));
 						}
@@ -348,7 +354,7 @@ string  argToBridge(CallInst * ci, int argnum, Value ** v, Value ** sizeInt, Val
 		else {
 
 				cerr<<"Pass incomplete" <<endl;
-				//ci->dump();
+				ci->dump();
 				*v = NULL; *sizeInt = NULL;
 				args = "";
 		}
@@ -365,7 +371,7 @@ string getRetType(CallInst * ci) {
 				ret = "p";
 		} else {
 				cerr<<"Pass incomplete" <<endl;
-				//ci->dump();
+				ci->dump();
 				ret = "";
 		}
 		return ret;
@@ -381,7 +387,7 @@ Type* getRetTy(CallInst * ci, IRBuilder<> &Builder) {
 				ret = Builder.getInt8PtrTy();
 		} else {
 				cerr<<"Pass incomplete" <<endl;
-				//ci->dump();
+				ci->dump();
 				ret = NULL;
 		}
 		return ret;
@@ -391,19 +397,88 @@ static map<string, int>compartmentMap;
 
 int promoteXCallNoCalee(CallInst * ci, BasicBlock::iterator& stmt, int compID);
 
+// int promoteCustomCallNoCalee(CallInst * ci, BasicBlock::iterator& stmt, int compID)
+// {
+// 		IRBuilder<> Builder(ci);
+// 		BasicBlock::iterator it(stmt);it--;
+// 		//Builder.SetInsertPoint(stmt->getNextNode()->getPrevNode());
+
+
+// 		auto params = ci->getFunctionType()->params().vec();
+// 		vector<Type *> args;
+// 		vector<Value *> args_val;
+// 		args.push_back(Builder.getInt32Ty());
+// 		args.push_back(Builder.getInt8PtrTy());
+// 		auto p = llvm::ConstantInt::get(Builder.getInt32Ty(), llvm::APInt(32, compID, false));
+// 		args_val.push_back(p);
+// 		auto ccallee = Builder.CreatePointerCast(ci->getCalledOperand(), Builder.getInt8PtrTy());
+// 		args_val.push_back(ccallee);
+
+
+// 		int i =0;
+// 		string func_name = getRetType(ci);
+// 		func_name = func_name + "call_arg";
+// 		string suffix = "";
+// 		for (auto arg: params) {
+// 				Value * v;
+// 				Value * size;
+// 				suffix = suffix + argToBridge(ci, i++, &v, &size);
+// 				args.push_back(v->getType());
+// 				args.push_back(size->getType());
+// 				args_val.push_back(v);
+// 				args_val.push_back(size);
+// 		}
+// 		func_name = func_name + std::to_string(i) + suffix;
+
+// 		auto func_type = FunctionType::get(getRetTy(ci, Builder), args, false);
+// 		auto f = ll_mod->getOrInsertFunction(func_name, func_type);
+// 		//		Function* f = Function::Create(func_type, Function::ExternalLinkage, func_name, ll_mod);
+
+// 		auto new_inst = Builder.CreateCall(f,args_val);
+// 		Instruction * ins;
+// 		if(ci->getType() == new_inst->getType()) {
+// 				ins = new_inst;
+// 		}
+// 		else if (ci->getType()->isPointerTy()) {
+// 				ins = dyn_cast<llvm::Instruction>(Builder.CreatePointerCast(new_inst, ci->getType()));
+// 		}else {
+// 				ins = dyn_cast<llvm::Instruction>(Builder.CreateIntCast(new_inst, ci->getType(),false));
+// 		}
+
+// 		stmt++;
+// 		ins->removeFromParent();
+		// ins->dump();
+// 		ReplaceInstWithInst(ci, ins);
+
+// 		return 0;
+// }
+
 int promoteXCall(CallInst * ci, Function * callee, BasicBlock::iterator& stmt) {
 		//Builder.SetInsertPoint(stmt->getNextNode()->getPrevNode());
 		IRBuilder<> Builder(ci);
 		auto num = ci->arg_size();
 		BasicBlock::iterator it(stmt);it--;
 		auto fun = ci->getCalledFunction();
+		auto isr = "custom_bridge";
 		if (fun && fun->getAttributes().getFnAttributes().hasAttribute("rtmkxcmd")) {
 				cout<<"Found function with metadata" <<endl;
 				auto attr = fun->getAttributes().getFnAttributes().getAttribute("rtmkxcmd");
 				auto kw = attr.getValueAsString().str();
+				cout<< fun->getName().str() <<endl;
 				if (kw == "custom_bridge") {
 						num = -1;
-						cout<<"CUstom Bridge found";
+						cout<<"Custom Bridge found"<<endl;
+					cout<<"Found function with metadata" <<endl;
+					fun = ci->getModule()->getFunction("custom_" + fun->getName().str());
+					// If the function exists, modify the call
+        			if (fun) {
+		        	    ci->setCalledFunction(fun);
+						// ci->setAttributes({});
+			        } else {
+						cout << "custom_" +ci->getCalledFunction()->getName().str() << " not defined." <<endl;
+						exit(1);
+					}	
+					return 0;
 				}
 		}
 
@@ -460,7 +535,7 @@ int promoteXCallNoCalee(CallInst * ci, BasicBlock::iterator& stmt, int compID) {
 
 		stmt++;
 		ins->removeFromParent();
-		//ins->dump();
+		ins->dump();
 		ReplaceInstWithInst(ci, ins);
 
 		return 0;
@@ -511,7 +586,7 @@ int promoteXCallNoCaleeNoId(CallInst * ci, BasicBlock::iterator& stmt) {
 
 		stmt++;
 		ins->removeFromParent();
-		//ins->dump();
+		ins->dump();
 		ReplaceInstWithInst(ci, ins);
 
 		return 0;
@@ -541,9 +616,9 @@ bool forward_slice_crt(Function *F, SmallPtrSet<Function*, 16> &visitedFunctions
 								}
 								else {
 										cerr<<"Incomplete Trace due to:"<<F->getName().str()<<endl;
-										//CI->getCalledOperand()->dump();
+										CI->getCalledOperand()->dump();
 										auto los = CI->getCalledOperand();
-									//	CI->getFunctionType()->dump();
+										CI->getFunctionType()->dump();
 #if WALK_VTABLES
 										//Compiler makes it the first argument for class function
 										CI->getFunctionType()->getParamType(0)->dump();
@@ -607,7 +682,7 @@ bool isVolatile(Value * v) {
 								if (!li->isVolatile()) {
 										isIO = false;
 										cout<<"Volatile nulled at";
-										//userInst->dump();
+										userInst->dump();
 										break;
 								}
 						}
@@ -615,7 +690,7 @@ bool isVolatile(Value * v) {
 								if (!si->isVolatile()) {
 										isIO = false;
 										cout<<"Volatile nulled at";
-									//	userInst->dump();
+										userInst->dump();
 										break;
 								}
 						}
@@ -697,6 +772,9 @@ int compartmentalize(char * argv[]) {
 		string syscall = "system_calls";
 		string isr = "isr_vector";
 
+		std::string toolchain_finder = "arm-gnu-toolchain-14.2.rel1-x86_64-arm-none-eabi";
+		std::unordered_set<std::string> libcfuncs;
+
 
 		map<Value *, vector<Value *>> PDG; // Function-> Global/Functions
 		ofstream dfg;
@@ -710,6 +788,12 @@ int compartmentalize(char * argv[]) {
 		ignoreList<<"__cxx_global_var_init.4"<<endl;
 		ignoreList<<"__cxx_global_var_init.5"<<endl;
 		ignoreList<<"__dso_handle"<<endl;
+		// ignoreList<<"__cxx11::basic_string"<<endl;
+		// ignoreList<<"_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEC2IS3_EEPKcRKS3_"<<endl;
+		// ignoreList<<"_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_Alloc_hiderD2Ev"<<endl;
+		// ignoreList<<"_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPKcEEvT_S8_St20forward_iterator_tag"<<endl;
+		// ignoreList<<"_ZZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPKcEEvT_S8_St20forward_iterator_tagEN6_GuardC2EPS4_"<<endl;
+		// ignoreList<<"_ZZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE12_M_constructIPKcEEvT_S8_St20forward_iterator_tagEN6_GuardD2Ev"<<endl;
 
 		std::cout<<"==Global Nmaes: =="<<std::endl;
 		for (auto G = svfModule->global_begin(), E = svfModule->global_end(); G != E; ++G) {
@@ -868,6 +952,12 @@ int compartmentalize(char * argv[]) {
 										ffmap<<fun->getName().str()<<"##" <<debugInfo->getFilename().str() <<endl;
 										fdirmap<<fun->getName().str()<<"##"<<debugInfo->getDirectory().str() <<endl; 
 										found =1;
+
+										if (debugInfo->getFilename().str().find(toolchain_finder) != std::string::npos)
+										{
+											libcfuncs.insert(fun->getName().str());
+										}
+
 										break;
 								}
 						}
@@ -877,6 +967,15 @@ int compartmentalize(char * argv[]) {
 						cout<<fun->getName().str()<< " is defined externally" <<endl;
 				}
 		}
+
+		libcfuncs.insert("snprintf");
+		libcfuncs.insert("strlen");
+		std::ofstream out_libcfuncs("libcfuncs");
+
+		for (const auto& func : libcfuncs) {
+			out_libcfuncs << func << '\n';
+		}
+
 		//DFMAP basically captures the file location of all data variables
 		ofstream dfmap;
 		dfmap.open("./dfmap");
@@ -956,7 +1055,7 @@ int compartmentalize(char * argv[]) {
 										if (auto cast= dyn_cast<llvm::ConstantExpr>(op)) {
 												/* Get the thing as an instruction */
 												if (auto inttoptr = dyn_cast<llvm::IntToPtrInst>(cast->getAsInstruction())) {
-														//cout << fun->getName().str() << " accesses "; inttoptr->dump();
+														cout << fun->getName().str() << " accesses "; inttoptr->dump();
 														if (auto ptsTo = dyn_cast<llvm::ConstantInt>(inttoptr->getOperand(0))) {
 																auto addr = *ptsTo->getValue().getRawData();
 																if (addr == 0 || addr ==0xFFFFFFFF) {
@@ -968,7 +1067,7 @@ int compartmentalize(char * argv[]) {
 																Type * type = getInnermostPointedToType(inttoptr->getDestTy ()->getPointerElementType());
 																if (type->getTypeID() == Type::StructTyID ) {
 																		cerr<<endl<<"IO Type"<<endl;
-																		//inttoptr->getDestTy ()->getPointerElementType()->dump();
+																		inttoptr->getDestTy ()->getPointerElementType()->dump();
 																		if (ioTypes.count(type)) {
 																				auto info = ioTypes[type];
 																				auto end = addr + 0x1000;
@@ -986,7 +1085,7 @@ int compartmentalize(char * argv[]) {
 																				info.end = addr + 0x1000;
 																				ioTypes[type] = info;
 																				cout<<"Adding new type"<<endl;
-																				//type->dump();
+																				type->dump();
 																				cout<<type<<endl;
 																				cout<<fun->getName().str()<<endl;
 																		}
@@ -996,23 +1095,23 @@ int compartmentalize(char * argv[]) {
 																if (isa<llvm::StoreInst>(stmt) || isa<llvm::LoadInst>(stmt)) {
 																		if (stmt->hasNUsesOrMore(2)) {
 																				cout<<"*****************************"<<endl;
-																				//stmt->dump();
+																				stmt->dump();
 																				printDI(dyn_cast<llvm::Instruction>(stmt));
 																				cout<<"used by:  "<<endl;
 																				int i =0;
 																				for (auto user: stmt->users()) {
-																						//user->dump();
+																						user->dump();
 																						printDI(dyn_cast<llvm::Instruction>(user));
 																				}
 																		}
 																}
 																if (auto gep = dyn_cast<llvm::GetElementPtrInst>(stmt)) {
 																		/* Trying to escape with pointer arithmetic not allowed */
-																		//gep->dump();
+																		gep->dump();
 																		if (!gep->hasAllConstantIndices()) {
 																				if (gep->getNumIndices ()  == 2) {
-																						//gep->getOperand(1)->dump();
-																						//gep->getOperand(2)->dump();
+																						gep->getOperand(1)->dump();
+																						gep->getOperand(2)->dump();
 																						auto cr = computeConstantRange(gep->getOperand(2));
 
 																				}
@@ -1044,17 +1143,17 @@ int compartmentalize(char * argv[]) {
 				Type * ty = getInnermostPointedToType(gv->getType());
 				if (ioTypes.count(ty)) {
 						cerr<<"IO Variable"<<endl;
-						//gv->dump();
+						gv->dump();
 						auto isIO = isVolatile(gv);
 						// See if variable is used as IO var
 
 						cout<<"is Accessed:" <<isAccessed(gv) << "isVolatile:"<<isVolatile(gv)<<endl;
 						if (isAccessed(gv)) {
 								for (User* user : gv->users()) {
-										//user->dump();
+										user->dump();
 										if (auto gep = dyn_cast<llvm::GetElementPtrInst>(user)) {
 												cout<<"GEP FOund"<<endl;
-												//gep->dump();
+												gep->dump();
 												if (isVolatile(gep)) {
 														Function* enclosingFunction = gep->getParent()->getParent();
 														dbgs() << "Use in Function: " << enclosingFunction->getName().str() << "\n";
@@ -1182,7 +1281,7 @@ int compartmentalize(char * argv[]) {
 								if (ty->isFunctionTy()) {
 									llvm::FunctionType *funcType = llvm::dyn_cast<llvm::FunctionType>(ty);
 									if (funcType->getNumParams() == 1) {
-										//	st->dump();
+											st->dump();
 											TargetStruct =st;
 									}
 								}
@@ -1343,7 +1442,7 @@ int compartmentalize(char * argv[]) {
 								if (auto elem = dyn_cast<StructType>(st->getElementType(i))) {
 										if (elem->hasName()) {
 												cerr<<"Parent Type:";
-												//st->getElementType(i)->dump();
+												st->getElementType(i)->dump();
 												auto parent_structure_type = elem;
 												auto parent_structure_name = parent_structure_type->getName().str();
 												if (parent_structure_type->getName().find("class")!= llvm::StringRef::npos 
@@ -1440,7 +1539,7 @@ int compartmentalize(char * argv[]) {
 		//I have no idea what this code was doing
 #if 0
 		std::string pag_str = "pag";
-		//fspta->getPAG()->dump(pag_str);
+		fspta->getPAG()->dump(pag_str);
 		cerr << pag_str<<endl;
 		if (fspta) {
 		for (SVFModule::llvm_iterator F = svfModule->llvmFunBegin(), E = svfModule->llvmFunEnd(); F != E; ++F) {
@@ -2051,7 +2150,7 @@ int compartmentalize(char * argv[]) {
 				if (auto fun = dyn_cast<llvm::Function> (res)) {
 						for (auto user : fun->users ()) {
 								cout<<"Dump old user"<<endl;
-						//		user->dump();
+								user->dump();
 						}
 				}
 		}
@@ -2064,7 +2163,7 @@ int compartmentalize(char * argv[]) {
 								temp.push_back(user);
 						}
 						for (auto user : temp) {
-								//user->dump();
+								user->dump();
 								ValueToValueMapTy VMap;
 								auto cfun = CloneFunction(fun, VMap);
 								clones.push_back(cfun);
@@ -2074,7 +2173,7 @@ int compartmentalize(char * argv[]) {
 										if (auto ci= dyn_cast<llvm::CallInst> (user)) {
 												ci->setCalledFunction (cfun);
 												cout<<"Cloning to new function"<<endl;
-										//		ci->dump();
+												ci->dump();
 										}
 								}
 						}
@@ -2100,6 +2199,11 @@ int compartmentalize(char * argv[]) {
 						continue;
 				}
 
+				if (libcfuncs.find(fun->getName().str()) != libcfuncs.end())
+				{
+					continue;
+				}
+
 				auto callerID  = compartmentMap[fun->getName().str()];
 				if (callerID == 0) continue;
 				auto test_temp = false;
@@ -2123,6 +2227,10 @@ int compartmentalize(char * argv[]) {
 												if (vContains(clones, callee) || vContains(cloneFuncs, callee)) {
 														continue;
 												}
+												if (libcfuncs.find(callee->getName().str()) != libcfuncs.end())
+												{
+													continue;
+												}
 												/* See if this is a debug call/intrinsic */
 												string llvm = "llvm";
 												if (callee->getName().str().find(llvm) != std::string::npos) continue;
@@ -2141,7 +2249,78 @@ int compartmentalize(char * argv[]) {
 												cerr<<"Indirect Call"<<endl;
 												vector<Function *> targets;
 												auto called = ci->getCalledOperand();
-												//called->dump();
+												called->dump();
+												
+												if (fun->getName().str() == "_Z32Perform_Inference_for_Sinw_Modela") 
+												{
+    												int dummy_break = 0; // <-- line 2178
+												}
+
+												if (libcfuncs.find(fun->getName().str()) != libcfuncs.end())
+												{
+													continue;
+												}
+
+												if (auto *bc = llvm::dyn_cast<llvm::BitCastOperator>(called)) 
+												{
+
+													if (auto *fn = llvm::dyn_cast<llvm::Function>(bc->getOperand(0))) 
+													{
+														cout << "=============== Indirect callee ===============" << std::endl;
+														cout << "Direct callee: " << fn->getName().str() << "\n" <<std::endl;
+														
+														if (libcfuncs.find(fn->getName().str()) != libcfuncs.end())
+														{
+															continue;
+														}
+
+														if (fn->getAttributes().getFnAttributes().hasAttribute("rtmkxcmd")) 
+														{
+															cout << "Has rtmkxcmd attribute!\n" <<std::endl;
+
+															auto attr = fn->getAttributes().getFnAttributes().getAttribute("rtmkxcmd");
+															auto kw = attr.getValueAsString().str();
+															
+															auto fn_name = fn->getName().str();
+															cout<< fn_name <<endl;
+															cout<< kw  <<endl;
+														
+
+															if (kw == "custom_bridge")
+															{
+																std::cout << "Call site has custom_bridge attribute\n" << std::endl;
+																
+																// auto *my_custom_func = svfModule->getLLVMModule()->getFunction("custom_" + fn->getName().str());
+
+																fn = ci->getModule()->getFunction("custom_" + fn->getName().str());
+
+																if (fn) 
+																{
+																	auto *new_bc = ConstantExpr::getBitCast(fn, bc->getType());
+
+																	if (new_bc)
+																	{
+																		ci->setCalledOperand(new_bc);
+																	}
+																	else {
+																		cout << "could not set bitcast" <<endl;
+																	}
+																	// bc->setOperand(0, fn);
+																	// ci->setCalledFunction(fn);
+																	continue;
+																}
+																else {
+																	cout << "custom_" + fn_name << " not defined." <<endl;
+																	continue;
+																	// exit(1);
+																}
+															}
+														}
+
+														cout << "=============== Indirect callee ===============" << std::endl;
+													}
+												}
+
 												auto ptr = called;
 												if (auto li= dyn_cast<llvm::LoadInst>(called)) {
 														ptr= li->getPointerOperand();
@@ -2149,9 +2328,9 @@ int compartmentalize(char * argv[]) {
 												{
 														cout<<"An alias pointer used"<<endl;
 														ptr = called;
-														//ptr->dump();
+														ptr->dump();
 														for(auto &pts: function_pointers) {
-																//cerr<<"Comparing with:"; pts.first->dump();
+																cerr<<"Comparing with:"; pts.first->dump();
 																if (aliasQuery(fspta, ptr, pts.first)) {
 																		cerr<<"Target Found:";
 																		cerr<<pts.second->getName().str()<<endl;
@@ -2215,8 +2394,13 @@ int compartmentalize(char * argv[]) {
 				serializedI<<indirectCall[i]<<endl;
 		}
 
+		dumpModuleToFile(ll_mod, "mydump.ll");
+
+		if (llvm::verifyModule(*ll_mod, &llvm::errs())) 
+		{
+ 	   		llvm::errs() << "Error: module verification failed!\n";
+		}
 
 		updateBC();
 		return 0;
 		}
-

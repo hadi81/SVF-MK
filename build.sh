@@ -128,7 +128,7 @@ then
 	rm -rf ./'Debug-build'
 	mkdir ./'Debug-build'
 	cd ./'Debug-build'
-	cmake -D CMAKE_BUILD_TYPE:STRING=Debug ../
+	cmake -D CMAKE_BUILD_TYPE:STRING=Debug -DLLVM_DIR=/home/hzm5471/repos/llvm-project/build ../ 
 else
 	rm -rf ./'Release-build'
 	mkdir ./'Release-build'
